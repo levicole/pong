@@ -31,7 +31,6 @@ class ViewController: UIViewController {
         }
     }
     var computerScoreLabel = UILabel()
-    private var myContext = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -67,11 +66,6 @@ class ViewController: UIViewController {
         }
         self.player1.center = CGPointMake(newX, self.player1.center.y)
         animator.updateItemUsingCurrentState(self.player1)
-    }
-    
-    func resetBallFrame() {
-        self.ball.frame.origin = CGPointMake(self.view.frame.width/2, self.view.frame.size.height/2)
-        pushBehavior.active = true
     }
     
     func createBall() {
