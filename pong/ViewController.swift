@@ -10,12 +10,19 @@ import UIKit
 
 class ViewController: UIViewController {
     var animator = UIDynamicAnimator()
+    
     var ball     = UIView()
+    var ballDynamicBehavior = UIDynamicItemBehavior()
+    
     var player1  = UIView()
+    var paddleDynamicBehavior = UIDynamicItemBehavior()
+
+    var computer = UIView()
+    var computerDynamicBehavior = UIDynamicItemBehavior()
+    var computerPusher: UIPushBehavior?
+    
     var divider  = UIView()
     var panGusture = UIPanGestureRecognizer()
-    var ballDynamicBehavior = UIDynamicItemBehavior()
-    var paddleDynamicBehavior = UIDynamicItemBehavior()
     var pushBehavior = UIPushBehavior()
     var originalPaddleX = CGFloat()
     
@@ -44,6 +51,7 @@ class ViewController: UIViewController {
         setupDivider()
         setupScoreBoards()
         setupPlayer1()
+        setupComputer()
         createBall()
     }
 
@@ -90,6 +98,12 @@ class ViewController: UIViewController {
         
         pushBehavior.setAngle(angle, magnitude: 0.03)
         pushBehavior.action = {
+            var location = self.ball.center
+            var dx = location.x - self.computer.center.x
+            
+            var newLocation = CGPointMake(location.x - dx, self.computer.center.y)
+            var newRect = CGRectMake(newLocation.x - (self.computer.frame.size.width / 2), self.computer.frame.origin.y, self.computer.frame.size.width, self.computer.frame.size.height)
+            
             if (self.ball.frame.origin.y < 0) {
                 self.createBall()
                 self.player1Score += 1
@@ -97,12 +111,29 @@ class ViewController: UIViewController {
                 self.computerScore += 1
                 self.createBall()
             }
+            
+            if self.computerPusher != nil {
+                self.animator.removeBehavior(self.computerPusher)
+            }
+            
+            if (CGRectContainsRect(self.view.frame, newRect)) {
+                self.computerPusher = UIPushBehavior(items: [self.computer], mode: UIPushBehaviorMode.Instantaneous)
+                if (self.computer.center.x < self.ball.center.x) {
+                    self.computerPusher?.setAngle(0, magnitude: 7)
+                    self.animator.addBehavior(self.computerPusher)
+                } else if (self.computer.center.x > self.ball.center.x) {
+                    self.computerPusher?.setAngle(CGFloat(M_PI), magnitude: 7.0)
+                    self.animator.addBehavior(self.computerPusher)
+                }
+            }
+            self.animator.updateItemUsingCurrentState(self.computer)
+            
         }
         animator.addBehavior(pushBehavior)
     }
     
     func createCollisions() {
-        var collisionBehavior = UICollisionBehavior(items: [self.ball, self.player1])
+        var collisionBehavior = UICollisionBehavior(items: [ball, player1, computer])
         collisionBehavior.addBoundaryWithIdentifier("leftWall", fromPoint: CGPointMake(0, 0), toPoint: CGPointMake(0, self.view.frame.size.height))
         collisionBehavior.addBoundaryWithIdentifier("rightWall", fromPoint: CGPointMake(self.view.frame.size.width, 0), toPoint: CGPointMake(self.view.frame.size.width, self.view.frame.size.height))
         animator.addBehavior(collisionBehavior)
@@ -141,8 +172,22 @@ class ViewController: UIViewController {
         self.paddleDynamicBehavior = UIDynamicItemBehavior(items: [self.player1])
         self.paddleDynamicBehavior.allowsRotation = false
         self.paddleDynamicBehavior.density = 1000
-        self.paddleDynamicBehavior.friction = 0.1
+        self.paddleDynamicBehavior.friction = 0.0
+        self.paddleDynamicBehavior.resistance = 0.0
         animator.addBehavior(self.paddleDynamicBehavior)
+    }
+    
+    func setupComputer() {
+        var computerRect = CGRectMake(self.view.center.x, 20, 100, 15)
+        computer = UIView(frame: computerRect)
+        computer.backgroundColor = UIColor.darkGrayColor()
+        view.addSubview(computer)
+        computerDynamicBehavior = UIDynamicItemBehavior(items: [computer])
+        computerDynamicBehavior.allowsRotation = false
+        computerDynamicBehavior.density = 1000
+        computerDynamicBehavior.friction = 0.0
+        computerDynamicBehavior.resistance = 0.5
+        animator.addBehavior(computerDynamicBehavior)
     }
     
     func setupDivider() {
