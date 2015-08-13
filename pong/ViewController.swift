@@ -86,9 +86,9 @@ class ViewController: UIViewController {
     func launchTheBall() {
         self.pushBehavior = UIPushBehavior(items: [self.ball], mode: UIPushBehaviorMode.Instantaneous)
         
-        let angle = CGFloat(Float(arc4random())/Float(UInt32.max))
+        let angle = CGFloat(Float(arc4random())/Float(UInt32.max) * (2.35 - 0.78) + 0.78)
         
-        pushBehavior.setAngle(angle, magnitude: 0.04)
+        pushBehavior.setAngle(angle, magnitude: 0.03)
         pushBehavior.action = {
             if (self.ball.frame.origin.y < 0) {
                 self.createBall()
