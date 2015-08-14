@@ -26,17 +26,9 @@ class ViewController: UIViewController {
     var pushBehavior = UIPushBehavior()
     var originalPaddleX = CGFloat()
     
-    var player1Score       = Int(0) {
-        didSet {
-            self.player1ScoreLabel.text = "\(player1Score)"
-        }
-    }
+    dynamic var player1Score       = Int(0)
     var player1ScoreLabel  = UILabel()
-    var computerScore      = Int() {
-        didSet {
-            self.computerScoreLabel.text = "\(computerScore)"
-        }
-    }
+    dynamic var computerScore      = Int(0)
     var computerScoreLabel = UILabel()
 
     override func viewDidLoad() {
@@ -53,6 +45,14 @@ class ViewController: UIViewController {
         setupPlayer1()
         setupComputer()
         createBall()
+        self.addObserver(self, forKeyPath: "player1Score", options: NSKeyValueObservingOptions.New, context: nil)
+        self.addObserver(self, forKeyPath: "computerScore", options: NSKeyValueObservingOptions.New, context: nil)
+        // set up key value observer for the users score
+        // when player is behind by 5, enable catepult mode
+        // on collision of the ball with the player, hold the all there
+        // flash the text "SHAKE!!"
+        // launch the ball at a high speed towards the computer such that it ensures a score
+        // after the score set catepult mode to false
     }
 
     override func didReceiveMemoryWarning() {
@@ -194,6 +194,19 @@ class ViewController: UIViewController {
         self.divider = UIView(frame: CGRectMake(0, self.view.frame.size.height/2, self.view.frame.size.width, 1))
         self.divider.backgroundColor = UIColor.darkGrayColor()
         self.view.addSubview(self.divider)
+    }
+    
+    override func observeValueForKeyPath(keyPath: String, ofObject object: AnyObject, change: [NSObject : AnyObject], context: UnsafeMutablePointer<Void>) {
+        if (keyPath == "player1Score") {
+            self.player1ScoreLabel.text = "\(player1Score)"
+        } else if (keyPath == "computerScore") {
+            self.computerScoreLabel.text = "\(computerScore)"
+        }
+    }
+    
+    deinit {
+        removeObserver(self, forKeyPath: "player1Score")
+        removeObserver(self, forKeyPath: "computerScore")
     }
 }
 
