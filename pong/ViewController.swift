@@ -8,7 +8,7 @@
 
 import UIKit
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, UICollisionBehaviorDelegate {
     var animator = UIDynamicAnimator()
     
     var ball     = UIView()
@@ -26,19 +26,14 @@ class ViewController: UIViewController {
     var pushBehavior = UIPushBehavior()
     var originalPaddleX = CGFloat()
     
-    var player1Score       = Int(0) {
-        didSet {
-            self.player1ScoreLabel.text = "\(player1Score)"
-        }
-    }
+    dynamic var player1Score       = Int(0)
     var player1ScoreLabel  = UILabel()
-    var computerScore      = Int() {
-        didSet {
-            self.computerScoreLabel.text = "\(computerScore)"
-        }
-    }
+    dynamic var computerScore      = Int(0)
     var computerScoreLabel = UILabel()
 
+    var catapultMode = false
+    
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -53,6 +48,15 @@ class ViewController: UIViewController {
         setupPlayer1()
         setupComputer()
         createBall()
+        launchTheBall()
+        self.addObserver(self, forKeyPath: "player1Score", options: NSKeyValueObservingOptions.New, context: nil)
+        self.addObserver(self, forKeyPath: "computerScore", options: NSKeyValueObservingOptions.New, context: nil)
+        // set up key value observer for the users score
+        // when player is behind by 5, enable catepult mode
+        // on collision of the ball with the player, hold the all there
+        // flash the text "SHAKE!!"
+        // launch the ball at a high speed towards the computer such that it ensures a score
+        // after the score set catepult mode to false
     }
 
     override func didReceiveMemoryWarning() {
@@ -78,25 +82,47 @@ class ViewController: UIViewController {
     
     func createBall() {
         let center = self.view.center;
+        ball.removeFromSuperview()
         ball     = UIView(frame: CGRectMake(center.x, center.y, 10, 10))
         ball.backgroundColor = UIColor.redColor()
         view.addSubview(self.ball)
         ballDynamicBehavior = UIDynamicItemBehavior(items: [self.ball])
         ballDynamicBehavior.allowsRotation = false
         ballDynamicBehavior.friction   = 0.0
+        ballDynamicBehavior.density    = 1.0
         ballDynamicBehavior.elasticity = 1.0
         ballDynamicBehavior.resistance = 0.0
         animator.addBehavior(self.ballDynamicBehavior)
         createCollisions()
-        launchTheBall()
     }
     
     func launchTheBall() {
         self.pushBehavior = UIPushBehavior(items: [self.ball], mode: UIPushBehaviorMode.Instantaneous)
         
-        let angle = CGFloat(Float(arc4random())/Float(UInt32.max) * (2.35 - 0.78) + 0.78)
+        var angle: CGFloat
+        var magnitude: CGFloat
         
-        pushBehavior.setAngle(angle, magnitude: 0.03)
+        if (catapultMode) {
+            var ballX = self.ball.center.x
+            var ballY = self.ball.center.y
+            
+            // top right corner
+            var topX  = CGFloat(5)
+            var topY  = CGFloat(0)
+            
+            var dx    = ballX - topX
+            var dy    = ballY - topY
+            
+            angle = atan2(-dy, dx)
+            magnitude = CGFloat(0.1)
+        } else {
+            angle = CGFloat(Float(arc4random())/Float(UInt32.max) * (2.35 - 0.78) + 0.78)
+            magnitude = CGFloat(0.03)
+        }
+        
+        
+        
+        pushBehavior.setAngle(angle, magnitude: magnitude)
         pushBehavior.action = {
             var location = self.ball.center
             var dx = location.x - self.computer.center.x
@@ -106,10 +132,14 @@ class ViewController: UIViewController {
             
             if (self.ball.frame.origin.y < 0) {
                 self.createBall()
+//                if (!self.catapultMode) { self.launchTheBall() }
+                self.launchTheBall()
                 self.player1Score += 1
             } else if (self.ball.frame.origin.y > CGRectGetMaxY(self.view.frame)){
                 self.computerScore += 1
                 self.createBall()
+//                if (!self.catapultMode) { self.launchTheBall() }
+                self.launchTheBall()
             }
             
             if self.computerPusher != nil {
@@ -136,6 +166,7 @@ class ViewController: UIViewController {
         var collisionBehavior = UICollisionBehavior(items: [ball, player1, computer])
         collisionBehavior.addBoundaryWithIdentifier("leftWall", fromPoint: CGPointMake(0, 0), toPoint: CGPointMake(0, self.view.frame.size.height))
         collisionBehavior.addBoundaryWithIdentifier("rightWall", fromPoint: CGPointMake(self.view.frame.size.width, 0), toPoint: CGPointMake(self.view.frame.size.width, self.view.frame.size.height))
+        collisionBehavior.collisionDelegate = self
         animator.addBehavior(collisionBehavior)
     }
     
@@ -172,7 +203,7 @@ class ViewController: UIViewController {
         self.paddleDynamicBehavior = UIDynamicItemBehavior(items: [self.player1])
         self.paddleDynamicBehavior.allowsRotation = false
         self.paddleDynamicBehavior.density = 1000
-        self.paddleDynamicBehavior.friction = 0.0
+        self.paddleDynamicBehavior.friction = 1.0
         self.paddleDynamicBehavior.resistance = 0.0
         animator.addBehavior(self.paddleDynamicBehavior)
     }
@@ -185,8 +216,8 @@ class ViewController: UIViewController {
         computerDynamicBehavior = UIDynamicItemBehavior(items: [computer])
         computerDynamicBehavior.allowsRotation = false
         computerDynamicBehavior.density = 1000
-        computerDynamicBehavior.friction = 0.0
-        computerDynamicBehavior.resistance = 0.5
+        computerDynamicBehavior.friction = 1.0
+        computerDynamicBehavior.resistance = 0.8
         animator.addBehavior(computerDynamicBehavior)
     }
     
@@ -194,6 +225,42 @@ class ViewController: UIViewController {
         self.divider = UIView(frame: CGRectMake(0, self.view.frame.size.height/2, self.view.frame.size.width, 1))
         self.divider.backgroundColor = UIColor.darkGrayColor()
         self.view.addSubview(self.divider)
+    }
+    
+    override func observeValueForKeyPath(keyPath: String, ofObject object: AnyObject, change: [NSObject : AnyObject], context: UnsafeMutablePointer<Void>) {
+        if (keyPath == "player1Score") {
+            self.player1ScoreLabel.text = "\(player1Score)"
+        } else if (keyPath == "computerScore") {
+            self.computerScoreLabel.text = "\(computerScore)"
+        }
+        if (keyPath == "player1Score" || keyPath == "computerScore") {
+            var scoreDiff = self.computerScore - self.player1Score
+            if (scoreDiff > 5) {
+                self.catapultMode = true
+            } else {
+                self.catapultMode = false
+            }
+        }
+    }
+    
+    // I'm going to use this to change the angle of the ball based on where it hits the paddle
+    func collisionBehavior(behavior: UICollisionBehavior, beganContactForItem item1: UIDynamicItem, withItem item2: UIDynamicItem, atPoint p: CGPoint) {
+        var view1 = item1 as! UIView
+        var view2 = item2 as! UIView
+        
+        //  if ((view1 == player1 || view2 == player1) && catapultMode == true) {
+        //      self.createBall()
+        //      self.ball.center = CGPointMake(p.x, self.player1.frame.origin.y);
+        //      self.animator.updateItemUsingCurrentState(self.ball)
+        //  }
+        if (view1 == self.ball || view2 == self.ball) {
+            NSLog("\(self.pushBehavior.angle)")
+        }
+    }
+    
+    deinit {
+        removeObserver(self, forKeyPath: "player1Score")
+        removeObserver(self, forKeyPath: "computerScore")
     }
 }
 
